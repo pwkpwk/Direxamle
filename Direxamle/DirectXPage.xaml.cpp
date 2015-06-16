@@ -80,11 +80,6 @@ DirectXPage::DirectXPage():
 	// Run task on a dedicated high priority background thread.
 	m_inputLoopWorker = ThreadPool::RunAsync(workItemHandler, WorkItemPriority::High, WorkItemOptions::TimeSliced);
 
-	Direlibre::Class1^ c1 = ref new Direlibre::Class1();
-
-	c1->Test11();
-	c1->Test12();
-
 	m_main = std::unique_ptr<DirexamleMain>(new DirexamleMain(m_deviceResources));
 	m_main->StartRenderLoop();
 }

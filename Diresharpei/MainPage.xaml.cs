@@ -1,5 +1,6 @@
 ﻿namespace Diresharpei
 {
+    using Windows.UI.Xaml;
     using Windows.UI.Xaml.Controls;
 
     /// <summary>
@@ -7,13 +8,24 @@
     /// </summary>
     public sealed partial class MainPage : Page
     {
+        private Direlibre.Rendering m_rendering;
+
         public MainPage()
         {
             this.InitializeComponent();
-            Direlibre.Class1 c1 = new Direlibre.Class1();
+            this.Loaded += this.OnLoaded;
+            this.Unloaded += this.OnUnloaded;
+        }
 
-            c1.Test11();
-            c1.Test12();
+        private void OnLoaded(object sender, RoutedEventArgs e)
+        {
+            m_rendering = new Direlibre.Rendering(this.SwapChainPanel);
+        }
+
+        private void OnUnloaded(object sender, RoutedEventArgs e)
+        {
+            m_rendering.Dispose();
+            m_rendering = null;
         }
     }
 }
