@@ -5,6 +5,9 @@ using namespace Windows::Foundation;
 
 namespace Direlibre
 {
+	//
+	// https://code.msdn.microsoft.com/windowsapps/XAML-SwapChainPanel-00cb688b/sourcecode?fileId=99187&pathId=40359581
+	//
 	Rendering::Rendering(SwapChainPanel^ panel)
 	:	m_panel(panel),
 		m_panelNative(nullptr),
