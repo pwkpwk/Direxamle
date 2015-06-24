@@ -38,11 +38,12 @@ namespace Direlibre
 		void CreateSizeDependentResources();
 		void OnDeviceLost();
 		void Present();
+		void Fill();
 
 	public:
 		Rendering(SwapChainPanel^ panel);
 		virtual ~Rendering();
 
-		void Fill();
+		void FillRectangle();
 	};
 }

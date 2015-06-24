@@ -8,6 +8,8 @@
     mc:Ignorable="d">
 
     <Grid Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
-        <SwapChainPanel x:Name="SwapChainPanel" Margin="12" />
+        <SwapChainPanel x:Name="SwapChainPanel" Margin="12">
+            <Button Click="OnFillClicked" VerticalAlignment="Center" HorizontalAlignment="Center">Fill</Button>
+        </SwapChainPanel>
     </Grid>
 </Page>

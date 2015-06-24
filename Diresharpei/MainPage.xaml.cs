@@ -30,7 +30,7 @@
 
         private void OnFillClicked(object sender, RoutedEventArgs e)
         {
-            m_rendering.Fill();
+            m_rendering.FillRectangle();
         }
     }
 }

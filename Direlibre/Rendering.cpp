@@ -69,6 +69,63 @@ namespace Direlibre
 		Present();
 	}
 
+	void Rendering::FillRectangle()
+	{
+		D2D1_RECT_U rect;
+
+		rect.left = 16;
+		rect.top = 16;
+		rect.right = static_cast<UINT>(m_targetWidth) / 2;
+		rect.bottom = static_cast<UINT>(m_targetHeight) / 2;
+
+		if (rect.right > rect.left && rect.bottom > rect.top)
+		{
+
+			size_t	count = rect.right * rect.bottom;
+			LPBYTE	data = (LPBYTE)calloc(count, 4);
+			UINT32	pitch = 4 * rect.right;
+			LPBYTE	bgra = data;
+
+			for (size_t i = 0; i < count; ++i)
+			{
+				bgra[0] = i & 0x2F;
+				bgra[1] = ( i + 7 ) & 0x1F;
+				bgra[2] = 0xFF;
+				bgra[3] = 0xFF;
+				bgra += 4;
+			}
+
+			m_d2dTargetBitmap->CopyFromMemory(&rect, data, pitch);
+			free(data);
+
+			DXGI_PRESENT_PARAMETERS parameters = { 0 };
+			RECT rc[1];
+
+			rc->left = rect.left;
+			rc->top = rect.top;
+			rc->right = rect.right;
+			rc->bottom = rect.bottom;
+
+			parameters.DirtyRectsCount = ARRAYSIZE(rc);
+			parameters.pDirtyRects = rc;
+			parameters.pScrollRect = nullptr;
+			parameters.pScrollOffset = nullptr;
+
+			HRESULT hr = S_OK;
+
+			hr = m_swapChain->Present1(1, 0, &parameters);
+
+			if (hr == DXGI_ERROR_DEVICE_REMOVED || hr == DXGI_ERROR_DEVICE_RESET)
+			{
+				OnDeviceLost();
+			}
+			else
+			{
+				ThrowIfFailed(hr);
+			}
+		}
+	}
+
 	void Rendering::OnSizeChanged(Object^ sender, SizeChangedEventArgs^ e)
 	{
 		if (e->NewSize != e->PreviousSize)
@@ -223,8 +280,9 @@ namespace Direlibre
 			swapChainDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
 			swapChainDesc.BufferCount = 2;                                      // Use double buffering to enable flip.
 			swapChainDesc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_SEQUENTIAL;        // All Windows Store apps must use this SwapEffect.
-			swapChainDesc.Flags = 0;
+			swapChainDesc.Flags = DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH;
 			swapChainDesc.AlphaMode = DXGI_ALPHA_MODE_UNSPECIFIED;
+			swapChainDesc.Scaling = DXGI_SCALING_STRETCH;
 
 			// Get underlying DXGI Device from D3D Device.
 			ComPtr<IDXGIDevice1> dxgiDevice;
