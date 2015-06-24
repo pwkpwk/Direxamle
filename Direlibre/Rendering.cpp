@@ -132,21 +132,27 @@ namespace Direlibre
 		// Create the DX11 API device object, and get a corresponding context.
 		ComPtr<ID3D11Device> device;
 		ComPtr<ID3D11DeviceContext> context;
+		HRESULT hr;
 
-		ThrowIfFailed(
-			::D3D11CreateDevice(
-				nullptr,                    // Specify null to use the default adapter.
-				D3D_DRIVER_TYPE_HARDWARE,
-				0,
-				creationFlags,              // Optionally set debug and Direct2D compatibility flags.
-				featureLevels,              // List of feature levels this app can support.
-				ARRAYSIZE(featureLevels),
-				D3D11_SDK_VERSION,          // Always set this to D3D11_SDK_VERSION for Windows Store apps.
-				&device,                    // Returns the Direct3D device created.
-				NULL,                       // Returns feature level of device created.
-				&context                    // Returns the device immediate context.
-				)
+		hr = ::D3D11CreateDevice(
+			nullptr,                    // Specify null to use the default adapter.
+			D3D_DRIVER_TYPE_HARDWARE,
+			0,
+			creationFlags,              // Optionally set debug and Direct2D compatibility flags.
+			featureLevels,              // List of feature levels this app can support.
+			ARRAYSIZE(featureLevels),
+			D3D11_SDK_VERSION,          // Always set this to D3D11_SDK_VERSION for Windows Store apps.
+			&device,                    // Returns the Direct3D device created.
+			NULL,                       // Returns feature level of device created.
+			&context                    // Returns the device immediate context.
 			);
+
+		if (FAILED(hr))
+		{
+			hr = ::D3D11CreateDevice( nullptr, D3D_DRIVER_TYPE_WARP, 0, creationFlags, featureLevels,
+				ARRAYSIZE(featureLevels), D3D11_SDK_VERSION, &device, NULL, &context );
+		}
+		ThrowIfFailed(hr);
 
 		// Get D3D11.1 device
 		ThrowIfFailed( device.As(&m_d3dDevice) );
