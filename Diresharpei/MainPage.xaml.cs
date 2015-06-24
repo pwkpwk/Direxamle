@@ -27,5 +27,10 @@
             m_rendering.Dispose();
             m_rendering = null;
         }
+
+        private void OnFillClicked(object sender, RoutedEventArgs e)
+        {
+            m_rendering.Fill();
+        }
     }
 }

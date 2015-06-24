@@ -5,6 +5,9 @@
       <UniqueIdentifier>f84c47cd-6531-42f8-9a96-122b2ab1997b</UniqueIdentifier>
       <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tga;tiff;tif;png;wav;mfcribbon-ms</Extensions>
     </Filter>
+    <Filter Include="Common">
+      <UniqueIdentifier>{cd425672-574e-415f-b7ed-c140456dd97c}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp" />
@@ -13,5 +16,8 @@
   <ItemGroup>
     <ClInclude Include="pch.h" />
     <ClInclude Include="Rendering.h" />
+    <ClInclude Include="Common\DirectXHelper.h">
+      <Filter>Common</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

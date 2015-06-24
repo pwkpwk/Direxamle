@@ -2,15 +2,19 @@
 #include "Rendering.h"
 
 using namespace Windows::Foundation;
+using namespace DX;
 
 namespace Direlibre
 {
+	const float DIPS_PER_INCH  = 96.0f;
+
 	//
 	// https://code.msdn.microsoft.com/windowsapps/XAML-SwapChainPanel-00cb688b/sourcecode?fileId=99187&pathId=40359581
 	//
 	Rendering::Rendering(SwapChainPanel^ panel)
 	:	m_panel(panel),
 		m_panelNative(nullptr),
+		m_d2dFactory(nullptr),
 		m_width(panel->ActualWidth),
 		m_height(panel->ActualHeight),
 		m_compositionScaleX(panel->CompositionScaleX),
@@ -22,12 +26,47 @@ namespace Direlibre
 		punk->QueryInterface(&m_panelNative);
 		m_panel->SizeChanged += ref new ::SizeChangedEventHandler(this, &Rendering::OnSizeChanged);
 		m_panel->CompositionScaleChanged += ref new TypedEventHandler<SwapChainPanel^, Object^>(this, &Rendering::OnCompositionScaleChanged);
+		CreateDeviceIndependentResources();
+		CreateDeviceResources();
+		CreateSizeDependentResources();
+		Fill();
 	}
 
 	Rendering::~Rendering()
 	{
 		if(nullptr != m_panelNative)
 			m_panelNative->Release();
+		if (nullptr != m_d2dFactory)
+			m_d2dFactory->Release();
+	}
+
+	void Rendering::Fill()
+	{
+		D2D1_RECT_U rect;
+
+		rect.left = 0;
+		rect.top = 0;
+		rect.right = static_cast<UINT>(m_targetWidth);
+		rect.bottom = static_cast<UINT>(m_targetHeight);
+
+		size_t	count	= rect.right * rect.bottom;
+		LPBYTE	data	= (LPBYTE)calloc(count, 4);
+		UINT32	pitch	= 4 * rect.right;
+		LPBYTE	bgra	= data;
+
+		for (size_t i = 0; i < count; ++i)
+		{
+			bgra[0] = 0xFF;
+			bgra[1] = 0x2F;
+			bgra[2] = i & 0x3F;
+			bgra[3] = 0xFF;
+			bgra += 4;
+		}
+
+		m_d2dTargetBitmap->CopyFromMemory(&rect, data, pitch);
+		free(data);
+
+		Present();
 	}
 
 	void Rendering::OnSizeChanged(Object^ sender, SizeChangedEventArgs^ e)
@@ -36,6 +75,7 @@ namespace Direlibre
 		m_width = e->NewSize.Width < 1.0f ? 1.0f : e->NewSize.Width;
 
 		CreateSizeDependentResources();
+		Fill();
 	}
 
 	void Rendering::OnCompositionScaleChanged(SwapChainPanel^ sender, Object^ e)
@@ -46,9 +86,229 @@ namespace Direlibre
 		CreateSizeDependentResources();
 	}
 
+	void Rendering::CreateDeviceIndependentResources()
+	{
+		D2D1_FACTORY_OPTIONS options;
+		ZeroMemory(&options, sizeof(D2D1_FACTORY_OPTIONS));
+
+#if 0
+#if defined(_DEBUG) 
+		// Enable D2D debugging via SDK Layers when in debug mode. 
+		options.debugLevel = D2D1_DEBUG_LEVEL_INFORMATION;
+#endif 
+#endif
+
+		::D2D1CreateFactory(D2D1_FACTORY_TYPE_SINGLE_THREADED, __uuidof(ID2D1Factory2), &options, (void**)&m_d2dFactory);
+	}
+
+	void Rendering::CreateDeviceResources()
+	{
+		// This flag adds support for surfaces with a different color channel ordering than the API default.
+		// It is recommended usage, and is required for compatibility with Direct2D.
+		UINT creationFlags = D3D11_CREATE_DEVICE_BGRA_SUPPORT;
+
+#if 0
+#if defined(_DEBUG)
+		// If the project is in a debug build, enable debugging via SDK Layers with this flag.
+		creationFlags |= D3D11_CREATE_DEVICE_DEBUG;
+#endif
+#endif
+
+		// This array defines the set of DirectX hardware feature levels this app will support.
+		// Note the ordering should be preserved.
+		// Don't forget to declare your application's minimum required feature level in its
+		// description.  All applications are assumed to support 9.1 unless otherwise stated.
+		D3D_FEATURE_LEVEL featureLevels[] =
+		{
+			D3D_FEATURE_LEVEL_11_1,
+			D3D_FEATURE_LEVEL_11_0,
+			D3D_FEATURE_LEVEL_10_1,
+			D3D_FEATURE_LEVEL_10_0,
+			D3D_FEATURE_LEVEL_9_3,
+			D3D_FEATURE_LEVEL_9_2,
+			D3D_FEATURE_LEVEL_9_1
+		};
+
+		// Create the DX11 API device object, and get a corresponding context.
+		ComPtr<ID3D11Device> device;
+		ComPtr<ID3D11DeviceContext> context;
+
+		ThrowIfFailed(
+			::D3D11CreateDevice(
+				nullptr,                    // Specify null to use the default adapter.
+				D3D_DRIVER_TYPE_HARDWARE,
+				0,
+				creationFlags,              // Optionally set debug and Direct2D compatibility flags.
+				featureLevels,              // List of feature levels this app can support.
+				ARRAYSIZE(featureLevels),
+				D3D11_SDK_VERSION,          // Always set this to D3D11_SDK_VERSION for Windows Store apps.
+				&device,                    // Returns the Direct3D device created.
+				NULL,                       // Returns feature level of device created.
+				&context                    // Returns the device immediate context.
+				)
+			);
+
+		// Get D3D11.1 device
+		ThrowIfFailed( device.As(&m_d3dDevice) );
+
+		// Get D3D11.1 context
+		ThrowIfFailed( context.As(&m_d3dContext) );
+
+		// Get underlying DXGI device of D3D device
+		ComPtr<IDXGIDevice> dxgiDevice;
+		ThrowIfFailed( m_d3dDevice.As(&dxgiDevice) );
+
+		// Get D2D device
+		ThrowIfFailed( m_d2dFactory->CreateDevice(dxgiDevice.Get(), &m_d2dDevice) );
+
+		// Get D2D context
+		ThrowIfFailed( m_d2dDevice->CreateDeviceContext( D2D1_DEVICE_CONTEXT_OPTIONS_NONE, &m_d2dContext ) );
+
+		// Set D2D text anti-alias mode to Grayscale to ensure proper rendering of text on intermediate surfaces.
+		m_d2dContext->SetTextAntialiasMode(D2D1_TEXT_ANTIALIAS_MODE_GRAYSCALE);
+	}
+
 	void Rendering::CreateSizeDependentResources()
 	{
 		m_targetWidth = m_width * m_compositionScaleX;
 		m_targetHeight = m_height * m_compositionScaleY;
+		//
+		// Ensure dependent objects have been released.
+		//
+		m_d2dContext->SetTarget(nullptr);
+		m_d2dTargetBitmap = nullptr;
+		m_d3dContext->OMSetRenderTargets(0, nullptr, nullptr);
+		m_d3dContext->Flush();
+
+		// If the swap chain already exists, then resize it.
+		if (nullptr != m_swapChain)
+		{
+			HRESULT hr = m_swapChain->ResizeBuffers( 2, static_cast<UINT>(m_targetWidth), static_cast<UINT>(m_targetHeight),
+				DXGI_FORMAT_B8G8R8A8_UNORM, 0 );
+
+			if (hr == DXGI_ERROR_DEVICE_REMOVED || hr == DXGI_ERROR_DEVICE_RESET)
+			{
+				// If the device was removed for any reason, a new device and swap chain will need to be created.
+				OnDeviceLost();
+				return;
+
+			}
+			else
+			{
+				ThrowIfFailed(hr);
+			}
+		}
+		else // Otherwise, create a new one.
+		{
+			DXGI_SWAP_CHAIN_DESC1 swapChainDesc = { 0 };
+			swapChainDesc.Width = static_cast<UINT>(m_targetWidth);      // Match the size of the panel.
+			swapChainDesc.Height = static_cast<UINT>(m_targetHeight);
+			swapChainDesc.Format = DXGI_FORMAT_B8G8R8A8_UNORM;                  // This is the most common swap chain format.
+			swapChainDesc.Stereo = false;
+			swapChainDesc.SampleDesc.Count = 1;                                 // Don't use multi-sampling.
+			swapChainDesc.SampleDesc.Quality = 0;
+			swapChainDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
+			swapChainDesc.BufferCount = 2;                                      // Use double buffering to enable flip.
+			swapChainDesc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_SEQUENTIAL;        // All Windows Store apps must use this SwapEffect.
+			swapChainDesc.Flags = 0;
+			swapChainDesc.AlphaMode = DXGI_ALPHA_MODE_UNSPECIFIED;
+
+			// Get underlying DXGI Device from D3D Device.
+			ComPtr<IDXGIDevice1> dxgiDevice;
+			ThrowIfFailed( m_d3dDevice.As(&dxgiDevice) );
+
+			// Get adapter.
+			ComPtr<IDXGIAdapter> dxgiAdapter;
+			ThrowIfFailed( dxgiDevice->GetAdapter(&dxgiAdapter) );
+
+			// Get factory.
+			ComPtr<IDXGIFactory2> dxgiFactory;
+			ThrowIfFailed( dxgiAdapter->GetParent(IID_PPV_ARGS(&dxgiFactory)) );
+
+			ComPtr<IDXGISwapChain1> swapChain;
+			// Create swap chain.
+			ThrowIfFailed( dxgiFactory->CreateSwapChainForComposition( m_d3dDevice.Get(), &swapChainDesc, nullptr, &swapChain ) );
+			swapChain.As(&m_swapChain);
+
+			// Ensure that DXGI does not queue more than one frame at a time. This both reduces 
+			// latency and ensures that the application will only render after each VSync, minimizing 
+			// power consumption.
+			ThrowIfFailed( dxgiDevice->SetMaximumFrameLatency(1) );
+			//
+			// Associate swap chain with SwapChainPanel.  This must be done on the UI thread.
+			//
+			ThrowIfFailed( m_panelNative->SetSwapChain(m_swapChain.Get()) );
+		}
+
+		// Ensure the physical pixel size of the swap chain takes into account both the XAML SwapChainPanel's logical layout size and 
+		// any cumulative composition scale applied due to zooming, render transforms, or the system's current scaling plateau.
+		// For example, if a 100x100 SwapChainPanel has a cumulative 2x scale transform applied, we instead create a 200x200 swap chain 
+		// to avoid artifacts from scaling it up by 2x, then apply an inverse 1/2x transform to the swap chain to cancel out the 2x transform.
+		DXGI_MATRIX_3X2_F inverseScale = { 0 };
+		inverseScale._11 = 1.0f / m_compositionScaleX;
+		inverseScale._22 = 1.0f / m_compositionScaleY;
+
+		m_swapChain->SetMatrixTransform(&inverseScale);
+
+		D2D1_BITMAP_PROPERTIES1 bitmapProperties =
+			D2D1::BitmapProperties1(
+				D2D1_BITMAP_OPTIONS_TARGET | D2D1_BITMAP_OPTIONS_CANNOT_DRAW,
+				D2D1::PixelFormat(DXGI_FORMAT_B8G8R8A8_UNORM, D2D1_ALPHA_MODE_PREMULTIPLIED),
+				DIPS_PER_INCH * m_compositionScaleX,
+				DIPS_PER_INCH * m_compositionScaleY
+				);
+
+		// Direct2D needs the DXGI version of the backbuffer surface pointer.
+		ComPtr<IDXGISurface> dxgiBackBuffer;
+		DX::ThrowIfFailed( m_swapChain->GetBuffer(0, IID_PPV_ARGS(&dxgiBackBuffer)) );
+
+		// Get a D2D surface from the DXGI back buffer to use as the D2D render target.
+		ThrowIfFailed( m_d2dContext->CreateBitmapFromDxgiSurface( dxgiBackBuffer.Get(), &bitmapProperties, &m_d2dTargetBitmap ) );
+
+		m_d2dContext->SetDpi(DIPS_PER_INCH * m_compositionScaleX, DIPS_PER_INCH * m_compositionScaleY);
+		m_d2dContext->SetTarget(m_d2dTargetBitmap.Get());
+	}
+
+	void Rendering::OnDeviceLost()
+	{
+		//m_loadingComplete = false;
+
+		m_swapChain = nullptr;
+
+		// Make sure the rendering state has been released.
+		m_d3dContext->OMSetRenderTargets(0, nullptr, nullptr);
+
+		m_d2dContext->SetTarget(nullptr);
+		m_d2dTargetBitmap = nullptr;
+
+		m_d2dContext = nullptr;
+		m_d2dDevice = nullptr;
+
+		m_d3dContext->Flush();
+
+		CreateDeviceResources();
+		CreateSizeDependentResources();
+	}
+
+	void Rendering::Present()
+	{
+		DXGI_PRESENT_PARAMETERS parameters = { 0 };
+		parameters.DirtyRectsCount = 0;
+		parameters.pDirtyRects = nullptr;
+		parameters.pScrollRect = nullptr;
+		parameters.pScrollOffset = nullptr;
+
+		HRESULT hr = S_OK;
+
+		hr = m_swapChain->Present1(1, 0, &parameters);
+
+		if (hr == DXGI_ERROR_DEVICE_REMOVED || hr == DXGI_ERROR_DEVICE_RESET)
+		{
+			OnDeviceLost();
+		}
+		else
+		{
+			ThrowIfFailed(hr);
+		}
 	}
 }

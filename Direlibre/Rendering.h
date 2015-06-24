@@ -14,20 +14,35 @@ namespace Direlibre
 	private:
 		SwapChainPanel^ const m_panel;
 		ISwapChainPanelNative *m_panelNative;
-		float
+		ID2D1Factory2 *m_d2dFactory;
+		double
 			m_width,
 			m_height,
-			m_compositionScaleX,
-			m_compositionScaleY,
 			m_targetWidth,
 			m_targetHeight;
+		float
+			m_compositionScaleX,
+			m_compositionScaleY;
+
+		ComPtr<ID3D11Device1>			m_d3dDevice;
+		ComPtr<ID3D11DeviceContext1>	m_d3dContext;
+		ComPtr<IDXGISwapChain2>         m_swapChain;
+		ComPtr<ID2D1Device>				m_d2dDevice;
+		ComPtr<ID2D1DeviceContext>		m_d2dContext;
+		ComPtr<ID2D1Bitmap1>			m_d2dTargetBitmap;
 
 		void OnSizeChanged(Object^ sender, SizeChangedEventArgs^ e);
 		void OnCompositionScaleChanged(SwapChainPanel^ sender, Object^ e);
+		void CreateDeviceIndependentResources();
+		void CreateDeviceResources();
 		void CreateSizeDependentResources();
+		void OnDeviceLost();
+		void Present();
 
 	public:
 		Rendering(SwapChainPanel^ panel);
 		virtual ~Rendering();
+
+		void Fill();
 	};
 }
