@@ -71,19 +71,26 @@ namespace Direlibre
 
 	void Rendering::OnSizeChanged(Object^ sender, SizeChangedEventArgs^ e)
 	{
-		m_height = e->NewSize.Height < 1.0f ? 1.0f : e->NewSize.Height;
-		m_width = e->NewSize.Width < 1.0f ? 1.0f : e->NewSize.Width;
+		if (e->NewSize != e->PreviousSize)
+		{
+			m_height = e->NewSize.Height < 1.0f ? 1.0f : e->NewSize.Height;
+			m_width = e->NewSize.Width < 1.0f ? 1.0f : e->NewSize.Width;
 
-		CreateSizeDependentResources();
-		Fill();
+			CreateSizeDependentResources();
+			Fill();
+		}
 	}
 
 	void Rendering::OnCompositionScaleChanged(SwapChainPanel^ sender, Object^ e)
 	{
-		m_compositionScaleX = sender->CompositionScaleX;
-		m_compositionScaleY = sender->CompositionScaleY;
+		if (m_compositionScaleX != sender->CompositionScaleX || m_compositionScaleY != sender->CompositionScaleY)
+		{
+			m_compositionScaleX = sender->CompositionScaleX;
+			m_compositionScaleY = sender->CompositionScaleY;
 
-		CreateSizeDependentResources();
+			CreateSizeDependentResources();
+			Fill();
+		}
 	}
 
 	void Rendering::CreateDeviceIndependentResources()
