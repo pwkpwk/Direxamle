@@ -8,8 +8,22 @@
     mc:Ignorable="d">
 
     <Grid Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
-        <SwapChainPanel x:Name="SwapChainPanel" Margin="12">
-            <Button Click="OnFillClicked" VerticalAlignment="Center" HorizontalAlignment="Center">Fill</Button>
+        <SwapChainPanel x:Name="SwapChainPanel" Margin="4">
+            <SwapChainPanel.RenderTransform>
+                <ScaleTransform x:Name="ScaleTransformation" ScaleX="1" ScaleY="1"/>
+            </SwapChainPanel.RenderTransform>
+            
+            <SwapChainPanel.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+            </SwapChainPanel.RowDefinitions>
+            
+            <StackPanel SwapChainPanel.Row="0" Orientation="Horizontal" HorizontalAlignment="Left">
+                <Button Click="OnFillClicked">Fill</Button>
+                <Button Click="OnScale100Clicked">Scale x1</Button>
+                <Button Click="OnScale150Clicked">Scale x1.5</Button>
+                <Button Click="OnScale200Clicked">Scale x2</Button>
+            </StackPanel>
         </SwapChainPanel>
     </Grid>
 </Page>

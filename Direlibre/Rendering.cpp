@@ -8,6 +8,29 @@ namespace Direlibre
 {
 	const float DIPS_PER_INCH  = 96.0f;
 
+	// This array defines the set of DirectX hardware feature levels this app will support.
+	// Note the ordering should be preserved.
+	// Don't forget to declare your application's minimum required feature level in its
+	// description.  All applications are assumed to support 9.1 unless otherwise stated.
+	static const D3D_FEATURE_LEVEL D3D_FEATURE_LEVELS[] =
+	{
+		D3D_FEATURE_LEVEL_11_1,
+		D3D_FEATURE_LEVEL_11_0,
+		D3D_FEATURE_LEVEL_10_1,
+		D3D_FEATURE_LEVEL_10_0,
+		D3D_FEATURE_LEVEL_9_3,
+		D3D_FEATURE_LEVEL_9_2,
+		D3D_FEATURE_LEVEL_9_1
+	};
+
+	struct BGRA
+	{
+		BYTE	blue,
+				green,
+				red,
+				alpha;
+	};
+
 	//
 	// https://code.msdn.microsoft.com/windowsapps/XAML-SwapChainPanel-00cb688b/sourcecode?fileId=99187&pathId=40359581
 	//
@@ -52,59 +75,91 @@ namespace Direlibre
 		size_t	count	= rect.right * rect.bottom;
 		LPBYTE	data	= (LPBYTE)calloc(count, 4);
 		UINT32	pitch	= 4 * rect.right;
-		LPBYTE	bgra	= data;
+		BGRA	*bgra	= reinterpret_cast<BGRA*>(data);
+		
 
 		for (size_t i = 0; i < count; ++i)
 		{
-			bgra[0] = 0xFF;
-			bgra[1] = 0x2F;
-			bgra[2] = i & 0x3F;
-			bgra[3] = 0xFF;
-			bgra += 4;
+			bgra->blue = 0xFF;
+			bgra->green = 0x2F;
+			bgra->red = i & 0x3F;
+			++bgra;
 		}
 
 		m_d2dTargetBitmap->CopyFromMemory(&rect, data, pitch);
 		free(data);
+
+		D2D1_RECT_F rectDest = { 60.0F, 60.0F, m_targetWidth - 60.0F, m_targetHeight - 60.0F };
+		m_d2dContext->BeginDraw();
+		m_d2dContext->DrawBitmap(m_d2dMemBitmap.Get(), rectDest);
+		m_d2dContext->EndDraw();
 
 		Present();
 	}
 
 	void Rendering::FillRectangle()
 	{
-		D2D1_RECT_U rect;
+		D2D1_RECT_U rect[2];
 
-		rect.left = 16;
-		rect.top = 16;
-		rect.right = static_cast<UINT>(m_targetWidth) / 2;
-		rect.bottom = static_cast<UINT>(m_targetHeight) / 2;
+		rect[0].left = 16;
+		rect[0].top = 16;
+		rect[0].right = static_cast<UINT>(m_targetWidth) / 4;
+		rect[0].bottom = static_cast<UINT>(m_targetHeight) / 4;
 
-		if (rect.right > rect.left && rect.bottom > rect.top)
+		rect[1].left = rect[0].right;
+		rect[1].top = rect[0].bottom;
+		rect[1].right = static_cast<UINT>(m_targetWidth) / 2;
+		rect[1].bottom = static_cast<UINT>(m_targetHeight) / 2;
+
+		if (rect[0].right > rect[0].left && rect[0].bottom > rect[0].top)
 		{
 
-			size_t	count = rect.right * rect.bottom;
+			size_t	count = rect[0].right * rect[0].bottom;
 			LPBYTE	data = (LPBYTE)calloc(count, 4);
-			UINT32	pitch = 4 * rect.right;
-			LPBYTE	bgra = data;
+			UINT32	pitch = sizeof(BGRA) * rect[0].right;
+			BGRA	*bgra = reinterpret_cast<BGRA*>(data);
 
 			for (size_t i = 0; i < count; ++i)
 			{
-				bgra[0] = i & 0x2F;
-				bgra[1] = ( i + 7 ) & 0x1F;
-				bgra[2] = 0xFF;
-				bgra[3] = 0xFF;
-				bgra += 4;
+				bgra->blue = i & 0x2F;
+				bgra->green = ( i + 7 ) & 0x1F;
+				bgra->red = 0xFF;
+				//bgra->alpha = 0xEF;
+				++bgra;
 			}
 
-			m_d2dTargetBitmap->CopyFromMemory(&rect, data, pitch);
+			m_d2dTargetBitmap->CopyFromMemory(rect, data, pitch);
+			free(data);
+
+			count = (rect[1].right - rect[1].left) * (rect[1].bottom - rect[1].top);
+			data = (LPBYTE)calloc(count, 4);
+			pitch = sizeof(BGRA) * ( rect[1].right - rect[1].left );
+			bgra = reinterpret_cast<BGRA*>(data);
+
+			for (size_t i = 0; i < count; ++i)
+			{
+				bgra->blue = i & 0x2F;
+				bgra->green = 0xEF;
+				bgra->red = 0xEF;
+				//bgra->alpha = 0xEF;
+				++bgra;
+			}
+
+			m_d2dTargetBitmap->CopyFromMemory(rect + 1, data, pitch);
 			free(data);
 
 			DXGI_PRESENT_PARAMETERS parameters = { 0 };
-			RECT rc[1];
+			RECT rc[2];
 
-			rc->left = rect.left;
-			rc->top = rect.top;
-			rc->right = rect.right;
-			rc->bottom = rect.bottom;
+			rc[0].left = rect[0].left;
+			rc[0].top = rect[0].top;
+			rc[0].right = rect[0].right;
+			rc[0].bottom = rect[0].bottom;
+
+			rc[1].left = rect[1].left;
+			rc[1].top = rect[1].top;
+			rc[1].right = rect[1].right;
+			rc[1].bottom = rect[1].bottom;
 
 			parameters.DirtyRectsCount = ARRAYSIZE(rc);
 			parameters.pDirtyRects = rc;
@@ -162,7 +217,7 @@ namespace Direlibre
 #endif 
 #endif
 
-		::D2D1CreateFactory(D2D1_FACTORY_TYPE_SINGLE_THREADED, __uuidof(ID2D1Factory2), &options, (void**)&m_d2dFactory);
+		::D2D1CreateFactory(D2D1_FACTORY_TYPE_MULTI_THREADED, __uuidof(m_d2dFactory), &options, (void**)&m_d2dFactory);
 	}
 
 	void Rendering::CreateDeviceResources()
@@ -178,43 +233,28 @@ namespace Direlibre
 #endif
 #endif
 
-		// This array defines the set of DirectX hardware feature levels this app will support.
-		// Note the ordering should be preserved.
-		// Don't forget to declare your application's minimum required feature level in its
-		// description.  All applications are assumed to support 9.1 unless otherwise stated.
-		D3D_FEATURE_LEVEL featureLevels[] =
-		{
-			D3D_FEATURE_LEVEL_11_1,
-			D3D_FEATURE_LEVEL_11_0,
-			D3D_FEATURE_LEVEL_10_1,
-			D3D_FEATURE_LEVEL_10_0,
-			D3D_FEATURE_LEVEL_9_3,
-			D3D_FEATURE_LEVEL_9_2,
-			D3D_FEATURE_LEVEL_9_1
-		};
-
 		// Create the DX11 API device object, and get a corresponding context.
 		ComPtr<ID3D11Device> device;
 		ComPtr<ID3D11DeviceContext> context;
 		HRESULT hr;
 
 		hr = ::D3D11CreateDevice(
-			nullptr,                    // Specify null to use the default adapter.
-			D3D_DRIVER_TYPE_HARDWARE,
-			0,
-			creationFlags,              // Optionally set debug and Direct2D compatibility flags.
-			featureLevels,              // List of feature levels this app can support.
-			ARRAYSIZE(featureLevels),
-			D3D11_SDK_VERSION,          // Always set this to D3D11_SDK_VERSION for Windows Store apps.
-			&device,                    // Returns the Direct3D device created.
-			NULL,                       // Returns feature level of device created.
-			&context                    // Returns the device immediate context.
+				nullptr,                    // Specify null to use the default adapter.
+				D3D_DRIVER_TYPE_HARDWARE,
+				0,
+				creationFlags,              // Optionally set debug and Direct2D compatibility flags.
+				D3D_FEATURE_LEVELS,              // List of feature levels this app can support.
+				ARRAYSIZE(D3D_FEATURE_LEVELS),
+				D3D11_SDK_VERSION,          // Always set this to D3D11_SDK_VERSION for Windows Store apps.
+				&device,                    // Returns the Direct3D device created.
+				NULL,                       // Returns feature level of device created.
+				&context                    // Returns the device immediate context.
 			);
 
 		if (FAILED(hr))
 		{
-			hr = ::D3D11CreateDevice( nullptr, D3D_DRIVER_TYPE_WARP, 0, creationFlags, featureLevels,
-				ARRAYSIZE(featureLevels), D3D11_SDK_VERSION, &device, NULL, &context );
+			hr = ::D3D11CreateDevice( nullptr, D3D_DRIVER_TYPE_WARP, 0, creationFlags, D3D_FEATURE_LEVELS,
+				ARRAYSIZE(D3D_FEATURE_LEVELS), D3D11_SDK_VERSION, &device, NULL, &context );
 		}
 		ThrowIfFailed(hr);
 
@@ -234,8 +274,10 @@ namespace Direlibre
 		// Get D2D context
 		ThrowIfFailed( m_d2dDevice->CreateDeviceContext( D2D1_DEVICE_CONTEXT_OPTIONS_NONE, &m_d2dContext ) );
 
+#if 0
 		// Set D2D text anti-alias mode to Grayscale to ensure proper rendering of text on intermediate surfaces.
 		m_d2dContext->SetTextAntialiasMode(D2D1_TEXT_ANTIALIAS_MODE_GRAYSCALE);
+#endif
 	}
 
 	void Rendering::CreateSizeDependentResources()
@@ -281,22 +323,23 @@ namespace Direlibre
 			swapChainDesc.BufferCount = 2;                                      // Use double buffering to enable flip.
 			swapChainDesc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_SEQUENTIAL;        // All Windows Store apps must use this SwapEffect.
 			swapChainDesc.Flags = DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH;
-			swapChainDesc.AlphaMode = DXGI_ALPHA_MODE_UNSPECIFIED;
+			swapChainDesc.AlphaMode = DXGI_ALPHA_MODE_IGNORE;
 			swapChainDesc.Scaling = DXGI_SCALING_STRETCH;
 
-			// Get underlying DXGI Device from D3D Device.
 			ComPtr<IDXGIDevice1> dxgiDevice;
+			ComPtr<IDXGIAdapter> dxgiAdapter;
+			ComPtr<IDXGIFactory2> dxgiFactory;
+			ComPtr<IDXGISwapChain1> swapChain;
+
+			// Get underlying DXGI Device from D3D Device.
 			ThrowIfFailed( m_d3dDevice.As(&dxgiDevice) );
 
 			// Get adapter.
-			ComPtr<IDXGIAdapter> dxgiAdapter;
 			ThrowIfFailed( dxgiDevice->GetAdapter(&dxgiAdapter) );
 
 			// Get factory.
-			ComPtr<IDXGIFactory2> dxgiFactory;
 			ThrowIfFailed( dxgiAdapter->GetParent(IID_PPV_ARGS(&dxgiFactory)) );
 
-			ComPtr<IDXGISwapChain1> swapChain;
 			// Create swap chain.
 			ThrowIfFailed( dxgiFactory->CreateSwapChainForComposition( m_d3dDevice.Get(), &swapChainDesc, nullptr, &swapChain ) );
 			swapChain.As(&m_swapChain);
@@ -324,7 +367,7 @@ namespace Direlibre
 		D2D1_BITMAP_PROPERTIES1 bitmapProperties =
 			D2D1::BitmapProperties1(
 				D2D1_BITMAP_OPTIONS_TARGET | D2D1_BITMAP_OPTIONS_CANNOT_DRAW,
-				D2D1::PixelFormat(DXGI_FORMAT_B8G8R8A8_UNORM, D2D1_ALPHA_MODE_PREMULTIPLIED),
+				D2D1::PixelFormat(DXGI_FORMAT_B8G8R8A8_UNORM, D2D1_ALPHA_MODE_IGNORE/*D2D1_ALPHA_MODE_PREMULTIPLIED*/),
 				DIPS_PER_INCH * m_compositionScaleX,
 				DIPS_PER_INCH * m_compositionScaleY
 				);
@@ -336,25 +379,37 @@ namespace Direlibre
 		// Get a D2D surface from the DXGI back buffer to use as the D2D render target.
 		ThrowIfFailed( m_d2dContext->CreateBitmapFromDxgiSurface( dxgiBackBuffer.Get(), &bitmapProperties, &m_d2dTargetBitmap ) );
 
+		D2D1_SIZE_U size = { 320, 240 };
+		D2D1_RECT_U rect = { 0, 0, size.width, size.height };
+		D2D1_BITMAP_PROPERTIES memBitmapProperties =
+			D2D1::BitmapProperties( D2D1::PixelFormat(DXGI_FORMAT_B8G8R8A8_UNORM, D2D1_ALPHA_MODE_IGNORE), DIPS_PER_INCH, DIPS_PER_INCH );
+
+		m_d2dContext->CreateBitmap(size, memBitmapProperties, &m_d2dMemBitmap);
+		BGRA *data = reinterpret_cast<BGRA*>(calloc(320 * 240, sizeof(BGRA)));
+		for (size_t i = 0; i < 320 * 240; i += 7)
+		{
+			data[i].red = 0xFF;
+			data[i].blue = 0xFF;
+			data[i].green = 0x1F;
+		}
+		m_d2dMemBitmap->CopyFromMemory(&rect, data, 320 * sizeof(BGRA));
+		free(data);
+
 		m_d2dContext->SetDpi(DIPS_PER_INCH * m_compositionScaleX, DIPS_PER_INCH * m_compositionScaleY);
 		m_d2dContext->SetTarget(m_d2dTargetBitmap.Get());
 	}
 
 	void Rendering::OnDeviceLost()
 	{
-		//m_loadingComplete = false;
-
-		m_swapChain = nullptr;
+		m_swapChain.Reset();
 
 		// Make sure the rendering state has been released.
 		m_d3dContext->OMSetRenderTargets(0, nullptr, nullptr);
 
 		m_d2dContext->SetTarget(nullptr);
-		m_d2dTargetBitmap = nullptr;
-
-		m_d2dContext = nullptr;
-		m_d2dDevice = nullptr;
-
+		m_d2dTargetBitmap.Reset();
+		m_d2dContext.Reset();
+		m_d2dDevice.Reset();
 		m_d3dContext->Flush();
 
 		CreateDeviceResources();
@@ -364,21 +419,17 @@ namespace Direlibre
 	void Rendering::Present()
 	{
 		DXGI_PRESENT_PARAMETERS parameters = { 0 };
-		parameters.DirtyRectsCount = 0;
-		parameters.pDirtyRects = nullptr;
-		parameters.pScrollRect = nullptr;
-		parameters.pScrollOffset = nullptr;
 
-		HRESULT hr = S_OK;
+		HRESULT hr = m_swapChain->Present1(1, 0, &parameters);
 
-		hr = m_swapChain->Present1(1, 0, &parameters);
-
-		if (hr == DXGI_ERROR_DEVICE_REMOVED || hr == DXGI_ERROR_DEVICE_RESET)
+		switch (hr)
 		{
+		case DXGI_ERROR_DEVICE_REMOVED:
+		case DXGI_ERROR_DEVICE_RESET:
 			OnDeviceLost();
-		}
-		else
-		{
+			break;
+
+		default:
 			ThrowIfFailed(hr);
 		}
 	}

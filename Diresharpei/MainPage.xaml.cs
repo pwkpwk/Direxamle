@@ -32,5 +32,23 @@
         {
             m_rendering.FillRectangle();
         }
+
+        private void OnScale100Clicked(object sender, RoutedEventArgs e)
+        {
+            this.ScaleTransformation.ScaleX = 1.0;
+            this.ScaleTransformation.ScaleY = 1.0;
+        }
+
+        private void OnScale150Clicked(object sender, RoutedEventArgs e)
+        {
+            this.ScaleTransformation.ScaleX = 1.5;
+            this.ScaleTransformation.ScaleY = 1.5;
+        }
+
+        private void OnScale200Clicked(object sender, RoutedEventArgs e)
+        {
+            this.ScaleTransformation.ScaleX = 2.0;
+            this.ScaleTransformation.ScaleY = 2.0;
+        }
     }
 }

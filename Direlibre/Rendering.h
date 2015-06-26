@@ -30,6 +30,7 @@ namespace Direlibre
 		ComPtr<ID2D1Device>				m_d2dDevice;
 		ComPtr<ID2D1DeviceContext>		m_d2dContext;
 		ComPtr<ID2D1Bitmap1>			m_d2dTargetBitmap;
+		ComPtr<ID2D1Bitmap>				m_d2dMemBitmap;
 
 		void OnSizeChanged(Object^ sender, SizeChangedEventArgs^ e);
 		void OnCompositionScaleChanged(SwapChainPanel^ sender, Object^ e);
