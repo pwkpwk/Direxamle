@@ -378,7 +378,9 @@ namespace Direlibre
 
 		// Get a D2D surface from the DXGI back buffer to use as the D2D render target.
 		ThrowIfFailed( m_d2dContext->CreateBitmapFromDxgiSurface( dxgiBackBuffer.Get(), &bitmapProperties, &m_d2dTargetBitmap ) );
-
+		//
+		// Create a 320x240 in-memory bitmap that will be drawn with scaling in the swap chain buffer. Fill the bitmap with purple dots.
+		//
 		D2D1_SIZE_U size = { 320, 240 };
 		D2D1_RECT_U rect = { 0, 0, size.width, size.height };
 		D2D1_BITMAP_PROPERTIES memBitmapProperties =
