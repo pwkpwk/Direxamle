@@ -89,7 +89,11 @@ namespace Direlibre
 		m_d2dTargetBitmap->CopyFromMemory(&rect, data, pitch);
 		free(data);
 
-		D2D1_RECT_F rectDest = { 60.0F, 60.0F, m_targetWidth - 60.0F, m_targetHeight - 60.0F };
+		D2D1_RECT_F rectDest =
+		{
+			60.0F, 60.0F, static_cast<FLOAT>(m_targetWidth - 60.0), static_cast<FLOAT>(m_targetHeight - 60.0)
+		};
+
 		m_d2dContext->BeginDraw();
 		m_d2dContext->DrawBitmap(m_d2dMemBitmap.Get(), rectDest);
 		m_d2dContext->EndDraw();
