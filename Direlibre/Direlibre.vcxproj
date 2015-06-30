@@ -206,6 +206,8 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="Common\DirectXHelper.h" />
+    <ClInclude Include="IPixelConsumer.h" />
+    <ClInclude Include="IPixelSource.h" />
     <ClInclude Include="pch.h" />
     <ClInclude Include="Rendering.h" />
   </ItemGroup>

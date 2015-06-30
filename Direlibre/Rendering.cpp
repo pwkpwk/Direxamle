@@ -23,14 +23,6 @@ namespace Direlibre
 		D3D_FEATURE_LEVEL_9_1
 	};
 
-	struct BGRA
-	{
-		BYTE	blue,
-				green,
-				red,
-				alpha;
-	};
-
 	//
 	// https://code.msdn.microsoft.com/windowsapps/XAML-SwapChainPanel-00cb688b/sourcecode?fileId=99187&pathId=40359581
 	//
@@ -43,7 +35,8 @@ namespace Direlibre
 		m_compositionScaleX(panel->CompositionScaleX),
 		m_compositionScaleY(panel->CompositionScaleY),
 		m_targetHeight(0),
-		m_targetWidth(0)
+		m_targetWidth(0),
+		m_pixelSource(nullptr)
 	{
 		LPUNKNOWN punk = reinterpret_cast<LPUNKNOWN>(panel);
 		punk->QueryInterface(&m_panelNative);
@@ -57,10 +50,22 @@ namespace Direlibre
 
 	Rendering::~Rendering()
 	{
+		if (nullptr != m_pixelSource)
+		{
+			m_pixelSource->Release();
+		}
+
 		if(nullptr != m_panelNative)
 			m_panelNative->Release();
 		if (nullptr != m_d2dFactory)
 			m_d2dFactory->Release();
+	}
+
+	void Rendering::AttachPixelSource(::Platform::IntPtr source)
+	{
+		void *ptr = (void*)source;
+		IPixelSource *pixelSource = reinterpret_cast<IPixelSource*>(ptr);
+		pixelSource->Retain();
 	}
 
 	void Rendering::Fill()

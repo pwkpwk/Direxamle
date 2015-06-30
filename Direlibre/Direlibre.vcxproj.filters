@@ -19,5 +19,7 @@
     <ClInclude Include="Common\DirectXHelper.h">
       <Filter>Common</Filter>
     </ClInclude>
+    <ClInclude Include="IPixelSource.h" />
+    <ClInclude Include="IPixelConsumer.h" />
   </ItemGroup>
 </Project>
